@@ -7,7 +7,7 @@ import re
 
 # Streamlit Set up
 st.set_page_config(page_title="Receipt Scanner")
-st.title("🧾 Receipt Scanner")
+st.title("Receipt Scanner")
 st.write("Take a photo or upload an image containing one or more receipts.")
 
 # Load in the YOLOv26 Engine. 
@@ -94,7 +94,7 @@ def scan_receipt(image_file):
         crop.save(buf, format="JPEG", quality=93)
 
         st.download_button(
-            label=f"💾 Download {filename}",
+            label=f" Download {filename}",
             data=buf.getvalue(),
             file_name=filename,
             mime="image/jpeg",
@@ -104,7 +104,7 @@ def scan_receipt(image_file):
         st.divider()
 
 # Camera and upload input
-tab_camera, tab_upload = st.tabs(["📷 Camera", " Upload"])
+tab_camera, tab_upload = st.tabs([" Camera", " Upload"])
 
 with tab_camera:
     photo = st.camera_input("Take a picture of your receipt(s)")
