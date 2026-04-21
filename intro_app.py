@@ -7,7 +7,7 @@
 import streamlit as st
 import easyocr
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import re
 
@@ -31,7 +31,7 @@ st.divider()
 @st.cache_resource
 def load_engine():
     from yolo_engine import ReceiptEngine
-    return ReceiptEngine(conf=0.20, buffer=20)
+    return ReceiptEngine(conf=0.15, buffer=20)
 
 @st.cache_resource
 def load_ocr():
@@ -62,9 +62,12 @@ def make_filename(store, date):
     date  = re.sub(r'[^0-9\-]', '', date)
     return f"{store}_{date}.jpg"
 
-# Shrink large photos so they don't cause memory issues
+# Fix phone photo rotation and shrink large images to save memory
 def resize_image(image):
-    max_size = 1200
+    # Fix sideways/upside-down photos from phones
+    image = ImageOps.exif_transpose(image)
+    # Shrink if too large
+    max_size = 1500
     w, h = image.size
     if max(w, h) > max_size:
         scale = max_size / max(w, h)
