@@ -11,6 +11,11 @@ st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] { background-color: white; }
 h1, h2, h3, p, label, .stMarkdown { color: navy !important; }
+.stTabs [data-baseweb="tab-list"] {
+    border: 2px solid navy;
+    border-radius: 8px;
+    padding: 4px;
+}
 .stTabs [data-baseweb="tab"] { color: navy !important; }
 .stTabs [aria-selected="true"] { border-bottom: 3px solid navy; }
 </style>
@@ -21,8 +26,12 @@ col1, col2 = st.columns([1, 4])
 with col1:
     st.image("UNF_Logo.png", width=80)
 with col2:
-    st.title("Receipt Scanner")
-    st.caption("Intro to Python · University of North Florida")
+    st.markdown("""
+    <div style="background-color:navy; padding:0.6rem 1rem; border-radius:8px;">
+        <h2 style="color:white; margin:0;">Receipt Scanner</h2>
+        <p style="color:#ccd9f0; margin:0; font-size:0.85rem;">Intro to Python · University of North Florida</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
 
