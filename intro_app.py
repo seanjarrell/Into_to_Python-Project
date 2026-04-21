@@ -37,7 +37,7 @@ st.divider()
 @st.cache_resource
 def load_engine():
     from yolo_engine import ReceiptEngine
-    return ReceiptEngine(conf=0.30, buffer=20)
+    return ReceiptEngine(conf=0.20, buffer=20)
 
 @st.cache_resource
 def load_ocr():
