@@ -4,114 +4,96 @@ import numpy as np
 from PIL import Image
 import io
 import re
-
-# Streamlit Set up
-st.set_page_config(page_title="Receipt Scanner")
-st.title("Receipt Scanner")
-st.write("Take a photo or upload an image containing one or more receipts.")
-
-# Load in the YOLOv26 Engine. 
-#This Engine was created and trained using Google Antigravity for a seperate project that we are both working on for with Dr. Rayfield 
-#Therefore AI was used for this training, but it was not used for defining the engine and bringing into the pipeline
+ 
+st.set_page_config(page_title="Receipt Scanner", page_icon="🧾")
+ 
+st.title("🧾 Receipt Scanner")
+st.write("Upload or take a photo of a receipt to save it with the right name.")
+ 
+# Load models once and cache them
 @st.cache_resource
 def load_engine():
     from yolo_engine import ReceiptEngine
     return ReceiptEngine(conf=0.30, buffer=20)
-
-# Load EasyOCR
+ 
 @st.cache_resource
 def load_ocr():
     return easyocr.Reader(['en'], gpu=False, verbose=False)
-
-# Load both models when the app starts
+ 
 engine = load_engine()
 reader = load_ocr()
-
-# Helper functions 
-
-def get_store_name(text_lines):
-    # The store name is usually the first line on the receipt
-    if text_lines:
-        return text_lines[0].title()
-    return "UnknownStore"
-
-def get_date(text_lines):
-    # Search every line for a date pattern
-    for line in text_lines:
+ 
+# Pull the store name from the first line of the receipt
+def get_store_name(lines):
+    return lines[0].title() if lines else "UnknownStore"
+ 
+# Search for a date pattern like 02/14/2026
+def get_date(lines):
+    for line in lines:
         match = re.search(r'\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}', line)
         if match:
             return match.group(0)
     return "NoDate"
-
+ 
+# Build a clean filename from store name and date
 def make_filename(store, date):
-    # Remove special characters so the filename is clean
     store = re.sub(r'[^a-zA-Z0-9]', '', store)
-    date  = re.sub(r'[^0-9\-]',    '', date).replace('/', '-')
+    date  = re.sub(r'[^0-9\-]', '', date)
     return f"{store}_{date}.jpg"
-
-def scan_receipt(image_file):
-    # Read the uploaded image
-    image_file.seek(0)
-    image = Image.open(image_file).convert("RGB")
-
-    # Use YOLO26 to find all receipts in the image
-    crops = engine.detect_and_crop_all(image, return_pil=True)
-
-    # If YOLO finds nothing, treat the whole image as one receipt
-    if not crops:
-        crops = [image]
-
+ 
+# Shrink large images so OCR doesn't run out of memory
+def resize(image, max_px=2000):
+    w, h = image.size
+    if max(w, h) <= max_px:
+        return image
+    scale = max_px / max(w, h)
+    return image.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+ 
+# Main function that runs when the user submits a photo
+def scan(source):
+    source.seek(0)
+    image = Image.open(source).convert("RGB")
+    image = resize(image)
+ 
+    with st.spinner("Detecting receipts..."):
+        crops = engine.detect_and_crop_all(image, return_pil=True) or [image]
+ 
     st.success(f"Found {len(crops)} receipt(s)!")
-
-    # Loop through each detected receipt
+ 
     for i, crop in enumerate(crops):
         st.subheader(f"Receipt {i + 1}")
-
-        # Run OCR to read the text on this receipt
-        text_results = reader.readtext(np.array(crop))
-
-        # Pull out just the text from each OCR result
-        text_lines = []
-        for (box, text, confidence) in text_results:
-            if confidence > 0.35:
-                text_lines.append(text.strip())
-
-        # Extract store name and date
-        store    = get_store_name(text_lines)
-        date     = get_date(text_lines)
-        filename = make_filename(store, date)
-
-        # Show the cropped receipt image
-        st.image(crop, caption=filename, use_column_width=True)
-
-        # Show what was found
-        st.write(f"**Store:** {store}")
-        st.write(f"**Date:** {date}")
-        st.write(f"**Filename:** {filename}")
-
-        # Save the image to memory and offer a download button
-        buf = io.BytesIO()
-        crop.save(buf, format="JPEG", quality=93)
-
-        st.download_button(
-            label=f" Download {filename}",
-            data=buf.getvalue(),
-            file_name=filename,
-            mime="image/jpeg",
-            key=f"download_{i}"
-        )
-
+ 
+        with st.spinner("Reading text..."):
+            results = reader.readtext(np.array(crop))
+ 
+        lines = [t.strip() for (_, t, c) in results if c > 0.35]
+ 
+        col1, col2 = st.columns(2)
+ 
+        with col1:
+            st.image(crop, use_container_width=True)
+ 
+        with col2:
+            store = st.text_input("Store name", get_store_name(lines), key=f"s{i}")
+            date  = st.text_input("Date",       get_date(lines),       key=f"d{i}")
+            fname = make_filename(store, date)
+            st.caption(f"📄 {fname}")
+ 
+            buf = io.BytesIO()
+            crop.save(buf, format="JPEG", quality=93)
+            st.download_button("💾 Save", buf.getvalue(), fname, "image/jpeg", key=f"dl{i}")
+ 
         st.divider()
-
-# Camera and upload input
-tab_camera, tab_upload = st.tabs([" Camera", " Upload"])
-
-with tab_camera:
-    photo = st.camera_input("Take a picture of your receipt(s)")
+ 
+# Camera and upload tabs
+tab1, tab2 = st.tabs(["📷 Camera", "📁 Upload"])
+ 
+with tab1:
+    photo = st.camera_input("Take a photo", label_visibility="collapsed")
     if photo:
-        scan_receipt(photo)
-
-with tab_upload:
-    upload = st.file_uploader("Upload a receipt image", type=["jpg", "jpeg", "png"])
+        scan(photo)
+ 
+with tab2:
+    upload = st.file_uploader("Upload image", type=["jpg","jpeg","png"], label_visibility="collapsed")
     if upload:
-        scan_receipt(upload)
+        scan(upload)
