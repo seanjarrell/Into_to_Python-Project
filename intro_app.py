@@ -64,7 +64,7 @@ def make_filename(store, date):
 
 # Shrink large photos so they don't cause memory issues
 def resize_image(image):
-    max_size = 2000
+    max_size = 1200
     w, h = image.size
     if max(w, h) > max_size:
         scale = max_size / max(w, h)
